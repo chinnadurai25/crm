@@ -12,6 +12,7 @@ app.use(express.json());
 
 // Create uploads folder if it does not exist
 const uploadFolder = path.join(__dirname, "uploads");
+
 if (!fs.existsSync(uploadFolder)) {
     fs.mkdirSync(uploadFolder);
 }
@@ -30,6 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
+
         const allowedTypes = /pdf|doc|docx|jpg|jpeg|png/;
         const ext = path.extname(file.originalname).toLowerCase();
 
@@ -72,24 +74,42 @@ app.post("/save", upload.single("document"), async (req, res) => {
     ];
 
     try {
-        await workbook.xlsx.readFile(filePath);
-        worksheet = workbook.getWorksheet("Sheet1");
 
-        if (!worksheet) {
+        if (fs.existsSync(filePath)) {
+
+            await workbook.xlsx.readFile(filePath);
+            worksheet = workbook.getWorksheet("Sheet1");
+
+            if (!worksheet) {
+                worksheet = workbook.addWorksheet("Sheet1");
+                worksheet.addRow(headers);
+            }
+
+        } else {
+
             worksheet = workbook.addWorksheet("Sheet1");
-        }
-
-        // Add headers if sheet is empty
-        if (worksheet.rowCount === 0) {
             worksheet.addRow(headers);
+
         }
 
     } catch (err) {
+
         worksheet = workbook.addWorksheet("Sheet1");
         worksheet.addRow(headers);
+
     }
 
-    // Add form data row
+    // Create clickable hyperlink for document
+    
+const fullPath = documentName
+    ? path.join(uploadFolder, documentName)
+    : "";
+
+const fileLink = documentName
+    ? { text: "Open File", hyperlink: fullPath }
+    : "";
+
+    // Add row
     worksheet.addRow([
         name,
         companyName,
@@ -98,19 +118,27 @@ app.post("/save", upload.single("document"), async (req, res) => {
         projectType,
         projectBudget,
         projectDescription,
-        documentName
+        fileLink
     ]);
 
     try {
+
         await workbook.xlsx.writeFile(filePath);
+
         res.send("Data Saved Successfully");
 
     } catch (err) {
+
         console.error("Error writing Excel file:", err);
+
         res.status(500).send("Failed to save data. Please close Excel if it is open.");
+
     }
+
 });
 
 app.listen(5000, () => {
+
     console.log("Server running on port 5000");
+
 });
