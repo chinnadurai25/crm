@@ -34,7 +34,8 @@ function Form() {
             setDocument(null);
         } catch (error) {
             console.error("Submission error:", error);
-            alert("Failed to submit form.");
+            const errorMessage = error.response?.data || "Failed to submit form.";
+            alert(errorMessage);
         }
     };
 
