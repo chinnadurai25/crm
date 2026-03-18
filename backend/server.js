@@ -1,42 +1,113 @@
 const express = require("express");
 const ExcelJS = require("exceljs");
 const cors = require("cors");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-app.post("/save", async (req, res) => {
+// Create uploads folder if it does not exist
+const uploadFolder = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadFolder)) {
+    fs.mkdirSync(uploadFolder);
+}
 
-    const { name, companyName, email, phone, projectType, projectBudget, projectDescription } = req.body;
+// Configure file storage
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadFolder);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + "-" + file.originalname);
+    }
+});
+
+// Allow specific file types
+const upload = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /pdf|doc|docx|jpg|jpeg|png/;
+        const ext = path.extname(file.originalname).toLowerCase();
+
+        if (allowedTypes.test(ext)) {
+            cb(null, true);
+        } else {
+            cb(new Error("Only PDF, DOC, DOCX, JPG, JPEG, PNG files are allowed"));
+        }
+    }
+});
+
+app.post("/save", upload.single("document"), async (req, res) => {
+
+    const {
+        name,
+        companyName,
+        email,
+        phone,
+        projectType,
+        projectBudget,
+        projectDescription
+    } = req.body;
+
+    const documentName = req.file ? req.file.filename : "";
 
     const workbook = new ExcelJS.Workbook();
     let worksheet;
 
-    const filePath = require("path").join(__dirname, "data.xlsx");
+    const filePath = path.join(__dirname, "data.xlsx");
 
-    const headers = ["Full Name", "Company Name", "Email Address", "Phone Number", "Project Type", "Project Budget", "Project Description"];
+    const headers = [
+        "Full Name",
+        "Company Name",
+        "Email Address",
+        "Phone Number",
+        "Project Type",
+        "Project Budget",
+        "Project Description",
+        "Uploaded Document"
+    ];
 
     try {
         await workbook.xlsx.readFile(filePath);
         worksheet = workbook.getWorksheet("Sheet1");
+
         if (!worksheet) {
             worksheet = workbook.addWorksheet("Sheet1");
+        }
+
+        // Add headers if sheet is empty
+        if (worksheet.rowCount === 0) {
             worksheet.addRow(headers);
         }
-    } catch {
+
+    } catch (err) {
         worksheet = workbook.addWorksheet("Sheet1");
         worksheet.addRow(headers);
     }
 
-    worksheet.addRow([name, companyName, email, phone, projectType, projectBudget, projectDescription]);
+    // Add form data row
+    worksheet.addRow([
+        name,
+        companyName,
+        email,
+        phone,
+        projectType,
+        projectBudget,
+        projectDescription,
+        documentName
+    ]);
 
     try {
         await workbook.xlsx.writeFile(filePath);
-        res.send("Data Saved");
+        res.send("Data Saved Successfully");
+
     } catch (err) {
-        console.error("Error writing to Excel file:", err);
-        res.status(500).send("Failed to save data. Please close the Excel file if it is open.");
+        console.error("Error writing Excel file:", err);
+        res.status(500).send("Failed to save data. Please close Excel if it is open.");
     }
 });
 

@@ -9,24 +9,32 @@ function Form() {
     const [projectType, setProjectType] = useState("");
     const [projectBudget, setProjectBudget] = useState("");
     const [projectDescription, setProjectDescription] = useState("");
+    const [document, setDocument] = useState(null);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         try {
-            await axios.post("http://localhost:5000/save", {
-                name,
-                companyName,
-                email,
-                phone,
-                projectType,
-                projectBudget,
-                projectDescription
+
+            const formData = new FormData();
+
+            formData.append("name", name);
+            formData.append("companyName", companyName);
+            formData.append("email", email);
+            formData.append("phone", phone);
+            formData.append("projectType", projectType);
+            formData.append("projectBudget", projectBudget);
+            formData.append("projectDescription", projectDescription);
+            formData.append("document", document);
+
+            await axios.post("http://localhost:5000/save", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data"
+                }
             });
 
             alert("Form Submitted successfully!");
 
-            // Reset form
             setName("");
             setCompanyName("");
             setEmail("");
@@ -34,6 +42,8 @@ function Form() {
             setProjectType("");
             setProjectBudget("");
             setProjectDescription("");
+            setDocument(null);
+
         } catch (error) {
             console.error("Submission error:", error);
             alert("Failed to submit form. Please check if the backend is running.");
@@ -48,6 +58,7 @@ function Form() {
             </div>
 
             <form className="project-form" onSubmit={handleSubmit}>
+
                 <div className="form-group">
                     <label htmlFor="name">Full Name</label>
                     <input
@@ -84,6 +95,7 @@ function Form() {
                             required
                         />
                     </div>
+
                     <div className="form-group flex-1">
                         <label htmlFor="phone">Phone Number</label>
                         <input
@@ -136,7 +148,20 @@ function Form() {
                     ></textarea>
                 </div>
 
-                <button type="submit" className="submit-btn">Submit Request</button>
+                <div className="form-group">
+                    <label htmlFor="document">Upload Document</label>
+                    <input
+                        id="document"
+                        type="file"
+                        accept=".pdf,.doc,.docx,.txt,.jpg,.png"
+                        onChange={(e) => setDocument(e.target.files[0])}
+                    />
+                </div>
+
+                <button type="submit" className="submit-btn">
+                    Submit Request
+                </button>
+
             </form>
         </div>
     );
